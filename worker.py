@@ -18,7 +18,7 @@ def notify_systemd():
         pass
 
 db = mysql.connector.connect(
-    host="localhost",
+    host="",
     user="",
     password="",
     database=""
@@ -33,7 +33,7 @@ def update_status(job_id, status, output=None):
     cursor.execute("UPDATE date_job SET status=%s, output=%s WHERE id=%s", (status, output, job_id))
     db.commit()
 
-def process_bill_generation(job_params):
+def process_bill_generation(job_params, test_mode):
     """Process bill generation job with Python code instead of shell command"""
     try:
         # Parse job parameters
@@ -41,6 +41,23 @@ def process_bill_generation(job_params):
         num_reps = params.get('num_reps', 42)
         user_id = params.get('user_id', 1)
         
+        if test_mode:
+            db = mysql.connector.connect(
+                host="",
+                user="",
+                password="",
+                database=""
+            )
+            cursor = db.cursor(dictionary=True)
+        else:
+            db = mysql.connector.connect(
+                host="",
+                user="",
+                password="",
+                database=""
+            )
+            cursor = db.cursor(dictionary=True)
+
         # Create Bills instance
         bill = Bills(num_reps, db)
         
@@ -54,7 +71,7 @@ def process_bill_generation(job_params):
     except Exception as e:
         raise Exception(f"Bill generation failed: {str(e)}")
 
-def execute_job(job):
+def execute_job(job, test_mode):
     """Execute a job - either as shell command or Python function"""
     command = job['command']
     
@@ -63,9 +80,9 @@ def execute_job(job):
         # Extract parameters if any (format: generate_bill_dates:{"user_id": 1, "num_reps": 42})
         if ':' in command:
             _, params_str = command.split(':', 1)
-            return process_bill_generation(params_str)
+            return process_bill_generation(params_str, test_mode)
         else:
-            return process_bill_generation('{}')
+            return process_bill_generation('{}', test_mode)
     else:
         # Execute as shell command (original behavior)
         result = subprocess.run(command, shell=True, capture_output=True, text=True, timeout=300)
@@ -79,10 +96,11 @@ while True:
     notify_systemd()
 
     job = fetch_job()
+
     if job:
         update_status(job['id'], 'running')
         try:
-            output = execute_job(job)
+            output = execute_job(job, job['test_mode'])
             status = 'done'
         except Exception as e:
             output = str(e)
