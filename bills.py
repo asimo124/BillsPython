@@ -96,27 +96,27 @@ class Bills:
         return len(self.cursor.fetchall()) > 0
         
     def insert_bill_date(self, bill_desc, user_id, amount, date, is_future=0, 
-                        is_heavy=0, vnd_frequency="", vnd_frequency_type=""):
+                        is_heavy=0, vnd_frequency="", vnd_frequency_type="", can_be_multiplied_by=1):
         """Insert a new bill date"""
         query = """INSERT INTO vnd_bill_dates 
                    (vnd_bill_desc, vnd_user_id, vnd_amount, vnd_date, vnd_is_future, 
-                    is_heavy, vnd_frequency, vnd_frequency_type) 
-                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"""
+                    is_heavy, vnd_frequency, vnd_frequency_type, can_be_multiplied_by) 
+                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"""
         
         self.cursor.execute(query, (bill_desc, user_id, amount, date, is_future, 
-                                   is_heavy, vnd_frequency, vnd_frequency_type))
+                                   is_heavy, vnd_frequency, vnd_frequency_type, can_be_multiplied_by))
         
     def load_once(self, freq_value, bill_desc, amount, freq_type, is_future=0, 
-                  is_heavy=0, vnd_frequency="", vnd_frequency_type=""):
+                  is_heavy=0, vnd_frequency="", vnd_frequency_type="", can_be_multiplied_by=1):
         """Load a one-time bill"""
         freq_value_str = self._ensure_string_date(freq_value)
         if not self.check_date_exists(bill_desc, freq_value_str, self.user_id):
             self.insert_bill_date(bill_desc, self.user_id, amount, freq_value_str, 
-                                 is_future, is_heavy, vnd_frequency, vnd_frequency_type)
+                                 is_future, is_heavy, vnd_frequency, vnd_frequency_type, can_be_multiplied_by)
             
     def load_once_per_month(self, freq_value, bill_desc, amount, freq_type="Day of Month", 
                            is_future=0, is_heavy=0, vnd_frequency="", vnd_frequency_type="",
-                           end_date=None, start_date=None):
+                           end_date=None, start_date=None, can_be_multiplied_by=1):
         """Load monthly recurring bills"""
         if freq_type == "Day of Month":
             # Validate and convert freq_value to int
@@ -163,7 +163,7 @@ class Bills:
                         if passes_future_validation and passes_prev_validation:
                             if not self.check_date_exists(bill_desc, date_str, self.user_id):
                                 self.insert_bill_date(bill_desc, self.user_id, amount, date_str,
-                                                     is_future, is_heavy, vnd_frequency, vnd_frequency_type)
+                                                     is_future, is_heavy, vnd_frequency, vnd_frequency_type, can_be_multiplied_by)
                     except ValueError:
                         # Invalid date (like Feb 30), skip
                         pass
@@ -177,7 +177,7 @@ class Bills:
                     
     def load_every_x_months(self, freq_value, bill_desc, amount, freq_type="Starting From", 
                            num_months=1, is_future=0, is_heavy=0, vnd_frequency="", 
-                           vnd_frequency_type=""):
+                           vnd_frequency_type="", can_be_multiplied_by=1):
         """Load bills that occur every X months"""
         if freq_type == "Starting From":
             num_days = num_months * 30
@@ -206,7 +206,7 @@ class Bills:
                 each_date = use_date
                 
     def load_once_per_week(self, freq_value, bill_desc, amount, freq_type="Day of Week", 
-                          is_future=0, is_heavy=0, vnd_frequency="", vnd_frequency_type=""):
+                          is_future=0, is_heavy=0, vnd_frequency="", vnd_frequency_type="", can_be_multiplied_by=1):
         """Load weekly recurring bills"""
         if freq_type == "Day of Week":
             # Validate and convert freq_value to int
@@ -250,7 +250,7 @@ class Bills:
                 
     def load_every_x_weeks(self, freq_value, bill_desc, amount, freq_type="Starting From", 
                           num_weeks=2, is_future=0, is_heavy=0, vnd_frequency="", 
-                          vnd_frequency_type=""):
+                          vnd_frequency_type="", can_be_multiplied_by=1):
         """Load bills that occur every X weeks"""
         if freq_type == "Starting From":
             num_days = num_weeks * 7
@@ -301,7 +301,7 @@ class Bills:
                         bill['vnd_frequency_value'], bill['vnd_bill'], bill['amount'],
                         bill['vnd_frequency_type'], bill.get('is_future', 0), 
                         bill.get('is_heavy', 0), bill['vnd_frequency'], bill['vnd_frequency_type'],
-                        bill.get('end_date'), bill.get('start_date')
+                        bill.get('end_date'), bill.get('start_date'), bill.get('can_be_multiplied_by', 1)
                     )
                 elif frequency == "Every 3 Months":
                     print(f"  -> Processing as 'Every 3 Months' with value: {bill['vnd_frequency_value']}, type: {bill['vnd_frequency_type']}")
